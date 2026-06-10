@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { getTeamFlag } from './MatchCard';
-import { Edit2, ShieldAlert, Award, Save, RefreshCw, Eye, ListFilter } from 'lucide-react';
+import { Edit2, ShieldAlert, Award, Save, RefreshCw, Eye, ListFilter, Download } from 'lucide-react';
 
 export default function AdminDashboard({ matches, predictions, onMatchUpdated, onRefreshData }) {
   const [selectedMatchId, setSelectedMatchId] = useState(null);
@@ -58,6 +58,53 @@ export default function AdminDashboard({ matches, predictions, onMatchUpdated, o
     }
   };
 
+  const handleExportPredictionsCSV = () => {
+    if (!predictions || predictions.length === 0) return;
+
+    const headers = [
+      'Participante',
+      'Fase',
+      'No. Partido',
+      'Local',
+      'Visitante',
+      'Pronóstico Local',
+      'Pronóstico Visitante',
+      'Puntos',
+      'Marcador Exacto',
+      'Ganador Acertado'
+    ];
+
+    const rows = predictions.map(p => {
+      const m = matches.find(match => match.id === p.match_id || match.match_number === p.match_number);
+      return [
+        p.participant_name || 'Desconocido',
+        m ? m.phase : '-',
+        p.match_number || (m ? m.match_number : '-'),
+        m ? m.home_team : '-',
+        m ? m.away_team : '-',
+        p.predicted_home_goals,
+        p.predicted_away_goals,
+        p.points,
+        p.is_exact_score ? 'SÍ' : 'NO',
+        p.is_winner_correct ? 'SÍ' : 'NO'
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Polla_Mundialista_Todos_Los_Pronosticos_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filter matches for admin list
   const filteredMatches = matches.filter(m => {
     if (adminFilter === 'all') return true;
@@ -81,12 +128,24 @@ export default function AdminDashboard({ matches, predictions, onMatchUpdated, o
             </h2>
             <p className="text-xs text-slate-400">Selecciona un partido para editar.</p>
           </div>
-          <button
-            onClick={onRefreshData}
-            className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all active:scale-95"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportPredictionsCSV}
+              disabled={!predictions || predictions.length === 0}
+              className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 disabled:opacity-40 disabled:hover:bg-slate-900 rounded-xl text-slate-400 hover:text-white transition-all active:scale-95 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+              title="Exportar todos los pronósticos a CSV"
+            >
+              <Download className="w-4 h-4" />
+              <span>CSV</span>
+            </button>
+            <button
+              onClick={onRefreshData}
+              className="p-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all active:scale-95"
+              title="Recargar datos"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Filters */}

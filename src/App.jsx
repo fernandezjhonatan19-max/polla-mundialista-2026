@@ -17,7 +17,8 @@ import {
   Activity, 
   Compass,
   CheckSquare,
-  Bookmark
+  Bookmark,
+  Download
 } from 'lucide-react';
 
 export default function App() {
@@ -122,6 +123,113 @@ export default function App() {
     await loadData();
     return saved;
   };
+  
+  const handleExportMyPredictionsCSV = () => {
+    const myPreds = predictions.filter(p => p.participant_id === currentUser.id);
+    if (myPreds.length === 0) {
+      alert('Aún no has registrado ningún pronóstico.');
+      return;
+    }
+
+    const headers = [
+      'No. Partido',
+      'Fase',
+      'Fecha',
+      'Local',
+      'Marcador Pronosticado',
+      'Visitante',
+      'Marcador Real',
+      'Puntos Obtenidos'
+    ];
+
+    const rows = matches.map(m => {
+      const pred = myPreds.find(p => p.match_id === m.id || p.match_number === m.match_number);
+      const predScore = pred ? `${pred.predicted_home_goals} - ${pred.predicted_away_goals}` : 'Sin pronóstico';
+      const actualScore = m.status === 'finished' ? `${m.actual_home_goals} - ${m.actual_away_goals}` : '-';
+      const pointsStr = m.status === 'finished' && pred ? `${pred.points} pts` : '-';
+      
+      return [
+        m.match_number,
+        m.phase,
+        new Date(m.match_date).toLocaleString(),
+        m.home_team,
+        predScore,
+        m.away_team,
+        actualScore,
+        pointsStr
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Mis_Pronosticos_Mundial_2026_${currentUser.name.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportAllPredictionsCSV = () => {
+    if (!tournamentStarted && !currentUser.is_admin) {
+      alert('Los pronósticos de otros participantes estarán disponibles cuando inicie el mundial (11 de junio, 2026).');
+      return;
+    }
+
+    if (!predictions || predictions.length === 0) {
+      alert('No hay pronósticos registrados.');
+      return;
+    }
+
+    const headers = [
+      'Participante',
+      'Fase',
+      'No. Partido',
+      'Local',
+      'Visitante',
+      'Pronóstico Local',
+      'Pronóstico Visitante',
+      'Puntos',
+      'Marcador Exacto',
+      'Ganador Acertado'
+    ];
+
+    const rows = predictions.map(p => {
+      const m = matches.find(match => match.id === p.match_id || match.match_number === p.match_number);
+      return [
+        p.participant_name || 'Desconocido',
+        m ? m.phase : '-',
+        p.match_number || (m ? m.match_number : '-'),
+        m ? m.home_team : '-',
+        m ? m.away_team : '-',
+        p.predicted_home_goals,
+        p.predicted_away_goals,
+        p.points,
+        p.is_exact_score ? 'SÍ' : 'NO',
+        p.is_winner_correct ? 'SÍ' : 'NO'
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Polla_Mundialista_Todos_Los_Pronosticos_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   if (authLoading) {
     return (
@@ -244,33 +352,85 @@ export default function App() {
               <div className="flex flex-col gap-6">
                 {/* Filters Row */}
                 <div className="glass-panel border-slate-800/80 rounded-3xl p-5 flex flex-col gap-4 shadow-lg">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-lg font-black text-white flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-soccer" />
-                      Calendario de Partidos ({filteredMatches.length})
-                    </h2>
-                    
-                    {/* Status filter selection */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                      {[
-                        { id: 'all', label: 'Todos' },
-                        { id: 'pending', label: 'Próximos' },
-                        { id: 'finished', label: 'Jugados' },
-                        { id: 'my_predictions', label: 'Mis pronósticos' },
-                        { id: 'missing_predictions', label: 'Sin pronosticar' }
-                      ].map(sf => (
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-center justify-between w-full lg:w-auto gap-4">
+                      <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-white flex items-center gap-2">
+                          <Calendar className="w-5 h-5 text-soccer" />
+                          Calendario de Partidos ({filteredMatches.length})
+                        </h2>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                          Filtra partidos y registra tus marcadores
+                        </span>
+                      </div>
+                      
+                      {/* Mobile Export Buttons */}
+                      <div className="flex lg:hidden gap-1.5">
                         <button
-                          key={sf.id}
-                          onClick={() => setStatusFilter(sf.id)}
-                          className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
-                            statusFilter === sf.id
-                              ? 'bg-soccer text-white border-soccer shadow-md shadow-soccer/10'
-                              : 'bg-slate-950/40 text-slate-400 border-slate-900 hover:bg-slate-900/50'
-                          }`}
+                          onClick={handleExportMyPredictionsCSV}
+                          className="p-2 bg-slate-950/40 border border-slate-900 hover:bg-slate-900/50 text-slate-300 rounded-xl transition-all active:scale-95 flex items-center"
+                          title="Descargar mis pronósticos"
                         >
-                          {sf.label}
+                          <Download className="w-4 h-4" />
                         </button>
-                      ))}
+                        {(tournamentStarted || currentUser.is_admin) && (
+                          <button
+                            onClick={handleExportAllPredictionsCSV}
+                            className="p-2 bg-soccer/15 border border-soccer-light/20 hover:bg-soccer/25 text-soccer-light rounded-xl transition-all active:scale-95 flex items-center"
+                            title="Descargar todos los pronósticos"
+                          >
+                            <Download className="w-4 h-4 text-soccer" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Status filter selection + Desktop Export */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 w-full lg:w-auto">
+                      {/* Desktop Export Buttons */}
+                      <div className="hidden lg:flex items-center gap-2">
+                        <button
+                          onClick={handleExportMyPredictionsCSV}
+                          className="flex items-center gap-1.5 py-1.5 px-3 bg-slate-950/40 border border-slate-900 hover:bg-slate-900/50 rounded-xl text-xs font-bold text-slate-300 transition-all active:scale-95"
+                          title="Descargar mis pronósticos en CSV"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Mis Pronósticos</span>
+                        </button>
+                        {(tournamentStarted || currentUser.is_admin) && (
+                          <button
+                            onClick={handleExportAllPredictionsCSV}
+                            className="flex items-center gap-1.5 py-1.5 px-3 bg-soccer/15 border border-soccer-light/20 hover:bg-soccer/25 rounded-xl text-xs font-bold text-soccer-light transition-all active:scale-95"
+                            title="Descargar todos los pronósticos en CSV"
+                          >
+                            <Download className="w-3.5 h-3.5 text-soccer" />
+                            <span>Todos los Pronósticos</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status filters */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+                        {[
+                          { id: 'all', label: 'Todos' },
+                          { id: 'pending', label: 'Próximos' },
+                          { id: 'finished', label: 'Jugados' },
+                          { id: 'my_predictions', label: 'Mis pronósticos' },
+                          { id: 'missing_predictions', label: 'Sin pronosticar' }
+                        ].map(sf => (
+                          <button
+                            key={sf.id}
+                            onClick={() => setStatusFilter(sf.id)}
+                            className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
+                              statusFilter === sf.id
+                                ? 'bg-soccer text-white border-soccer shadow-md shadow-soccer/10'
+                                : 'bg-slate-950/40 text-slate-400 border-slate-900 hover:bg-slate-900/50'
+                            }`}
+                          >
+                            {sf.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
