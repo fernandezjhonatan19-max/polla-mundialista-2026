@@ -129,13 +129,32 @@ export const api = {
       if (error) throw error;
       
       // Fetch participant profile
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('participants')
         .select('*')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
         
       if (profileError) throw profileError;
+
+      if (!profile) {
+        // Create participant profile on the fly
+        const { data: newProfile, error: insertError } = await supabase
+          .from('participants')
+          .insert({
+            id: data.user.id,
+            name: data.user.user_metadata?.name || email.split('@')[0],
+            email: data.user.email,
+            pool_code: data.user.user_metadata?.pool_code || 'MUNDIAL2026',
+            is_admin: data.user.email === 'admin@example.com' || !!data.user.user_metadata?.is_admin
+          })
+          .select()
+          .single();
+          
+        if (insertError) throw insertError;
+        profile = newProfile;
+      }
+      
       return { ...data.user, ...profile };
     } else {
       const users = JSON.parse(localStorage.getItem(LS_PARTICIPANTS) || '[]');
@@ -162,11 +181,28 @@ export const api = {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return null;
       
-      const { data: profile } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('participants')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
+        
+      if (!profile && !profileError) {
+        // Create participant profile on the fly
+        const { data: newProfile } = await supabase
+          .from('participants')
+          .insert({
+            id: session.user.id,
+            name: session.user.user_metadata?.name || session.user.email.split('@')[0],
+            email: session.user.email,
+            pool_code: session.user.user_metadata?.pool_code || 'MUNDIAL2026',
+            is_admin: session.user.email === 'admin@example.com' || !!session.user.user_metadata?.is_admin
+          })
+          .select()
+          .single();
+          
+        profile = newProfile;
+      }
         
       return profile ? { ...session.user, ...profile } : null;
     } else {
