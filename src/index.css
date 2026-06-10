@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-soccer selection:text-white;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(22, 163, 74, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(234, 179, 8, 0.05) 0px, transparent 50%),
+      radial-gradient(at 50% 0%, rgba(15, 23, 42, 1) 0px, transparent 100%);
+    background-attachment: fixed;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full hover:bg-soccer/80 transition-colors;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  @apply bg-slate-900/70 border border-slate-800/80 backdrop-blur-md;
+}
+
+.glass-card {
+  @apply bg-slate-900/50 hover:bg-slate-900/80 border border-slate-800/50 hover:border-slate-700/50 rounded-2xl transition-all duration-300 backdrop-blur-sm;
+}
+
+.glass-input {
+  @apply bg-slate-950/80 border border-slate-800 rounded-xl focus:border-soccer focus:ring-1 focus:ring-soccer focus:outline-none transition-all text-white placeholder-slate-500;
+}
+
+/* Sports card custom styling */
+.sport-gradient {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.15) 0%, rgba(15, 23, 42, 0) 100%);
+}
