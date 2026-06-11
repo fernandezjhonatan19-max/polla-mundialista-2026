@@ -365,6 +365,7 @@ export const api = {
   },
 
   async savePrediction(userId, matchId, homeGoals, awayGoals) {
+    const matches = await this.getMatches();
     const isNumeric = typeof matchId === 'number' || (typeof matchId === 'string' && /^\d+$/.test(matchId));
     const match = matches.find(m => m.id === matchId || (isNumeric && m.match_number === parseInt(matchId, 10)));
     if (!match) throw new Error('Partido no encontrado.');
