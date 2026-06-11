@@ -246,7 +246,8 @@ export const api = {
     } else {
       // Local Storage simulation with manual points recalculation (mirroring the DB trigger)
       const matches = JSON.parse(localStorage.getItem(LS_MATCHES) || '[]');
-      const matchIndex = matches.findIndex(m => m.id === matchId || m.match_number === parseInt(matchId));
+      const isNumeric = typeof matchId === 'number' || (typeof matchId === 'string' && /^\d+$/.test(matchId));
+      const matchIndex = matches.findIndex(m => m.id === matchId || (isNumeric && m.match_number === parseInt(matchId, 10)));
       if (matchIndex === -1) throw new Error('Partido no encontrado.');
 
       const oldMatch = matches[matchIndex];
@@ -364,9 +365,8 @@ export const api = {
   },
 
   async savePrediction(userId, matchId, homeGoals, awayGoals) {
-    // 1. Fetch match to check if it's locked
-    const matches = await this.getMatches();
-    const match = matches.find(m => m.id === matchId || m.match_number === parseInt(matchId));
+    const isNumeric = typeof matchId === 'number' || (typeof matchId === 'string' && /^\d+$/.test(matchId));
+    const match = matches.find(m => m.id === matchId || (isNumeric && m.match_number === parseInt(matchId, 10)));
     if (!match) throw new Error('Partido no encontrado.');
 
     // Check if match already started
