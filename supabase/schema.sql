@@ -215,3 +215,47 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 8. Trigger to auto-calculate prediction points on insert/update (safeguard for seeder/admin additions)
+CREATE OR REPLACE FUNCTION public.calculate_prediction_points_on_insert_update()
+RETURNS TRIGGER AS $$
+DECLARE
+  match_rec RECORD;
+BEGIN
+  -- Fetch match status and scores
+  SELECT status, actual_home_goals, actual_away_goals INTO match_rec
+  FROM public.matches
+  WHERE id = NEW.match_id;
+
+  IF match_rec.status = 'finished' THEN
+    NEW.points := CASE
+      -- Exact score: 3 points
+      WHEN NEW.predicted_home_goals = match_rec.actual_home_goals AND NEW.predicted_away_goals = match_rec.actual_away_goals THEN 3
+      -- Winner Team 1 or Winner Team 2 or Draw: 1 point
+      WHEN (NEW.predicted_home_goals > NEW.predicted_away_goals AND match_rec.actual_home_goals > match_rec.actual_away_goals) OR
+           (NEW.predicted_home_goals < NEW.predicted_away_goals AND match_rec.actual_home_goals < match_rec.actual_away_goals) OR
+           (NEW.predicted_home_goals = NEW.predicted_away_goals AND match_rec.actual_home_goals = match_rec.actual_away_goals) THEN 1
+      -- Default: 0 points
+      ELSE 0
+    END;
+    NEW.is_exact_score := (NEW.predicted_home_goals = match_rec.actual_home_goals AND NEW.predicted_away_goals = match_rec.actual_away_goals);
+    NEW.is_winner_correct := (
+      (NEW.predicted_home_goals > NEW.predicted_away_goals AND match_rec.actual_home_goals > match_rec.actual_away_goals) OR
+      (NEW.predicted_home_goals < NEW.predicted_away_goals AND match_rec.actual_home_goals < match_rec.actual_away_goals) OR
+      (NEW.predicted_home_goals = NEW.predicted_away_goals AND match_rec.actual_home_goals = match_rec.actual_away_goals)
+    );
+  ELSE
+    NEW.points := 0;
+    NEW.is_exact_score := FALSE;
+    NEW.is_winner_correct := FALSE;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_calculate_prediction_points_on_insert_update ON public.predictions;
+CREATE TRIGGER trg_calculate_prediction_points_on_insert_update
+BEFORE INSERT OR UPDATE ON public.predictions
+FOR EACH ROW
+EXECUTE FUNCTION public.calculate_prediction_points_on_insert_update();
+
