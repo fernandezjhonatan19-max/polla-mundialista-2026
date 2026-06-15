@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { getTeamFlag } from './MatchCard';
 import { Edit2, ShieldAlert, Award, Save, RefreshCw, Eye, ListFilter, Download } from 'lucide-react';
 
 export default function AdminDashboard({ matches, predictions, onMatchUpdated, onRefreshData }) {
   const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const editorRef = useRef(null);
   
   // Form state
   const [homeTeam, setHomeTeam] = useState('');
@@ -28,6 +29,13 @@ export default function AdminDashboard({ matches, predictions, onMatchUpdated, o
       setAwayGoals(selectedMatch.actual_away_goals !== null && selectedMatch.actual_away_goals !== undefined ? selectedMatch.actual_away_goals : '');
       setStatus(selectedMatch.status);
       setMessage(null);
+
+      // Smooth scroll to the editor on mobile/tablet views (width < 1024px)
+      if (window.innerWidth < 1024) {
+        setTimeout(() => {
+          editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
     }
   }, [selectedMatch]);
 
@@ -219,7 +227,7 @@ export default function AdminDashboard({ matches, predictions, onMatchUpdated, o
       </div>
 
       {/* Col 2 & 3: Editor and Prediction Grid */}
-      <div className="lg:col-span-2 flex flex-col gap-6">
+      <div ref={editorRef} className="lg:col-span-2 flex flex-col gap-6">
         {selectedMatch ? (
           <>
             {/* Editor panel */}
