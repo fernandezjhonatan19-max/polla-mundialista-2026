@@ -37,7 +37,7 @@ export default function App() {
 
   // Matches filter states
   const [phaseFilter, setPhaseFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'finished', 'my_predictions', 'missing_predictions'
+  const [statusFilter, setStatusFilter] = useState('upcoming'); // 'upcoming', 'all', 'finished', 'my_predictions', 'missing_predictions'
 
   // Load current session on mount
   useEffect(() => {
@@ -271,8 +271,8 @@ export default function App() {
     const isLocked = m.status !== 'pending' || new Date().getTime() >= matchTime;
 
     switch (statusFilter) {
-      case 'pending':
-        return m.status === 'pending' && !isLocked;
+      case 'upcoming':
+        return m.status === 'pending' || m.status === 'in_progress';
       case 'finished':
         return m.status === 'finished';
       case 'my_predictions':
@@ -412,8 +412,8 @@ export default function App() {
                       {/* Status filters */}
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
                         {[
+                          { id: 'upcoming', label: 'Próximos / En juego' },
                           { id: 'all', label: 'Todos' },
-                          { id: 'pending', label: 'Próximos' },
                           { id: 'finished', label: 'Jugados' },
                           { id: 'my_predictions', label: 'Mis pronósticos' },
                           { id: 'missing_predictions', label: 'Sin pronosticar' }
