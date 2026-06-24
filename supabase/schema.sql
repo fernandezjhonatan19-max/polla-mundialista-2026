@@ -105,22 +105,10 @@ CREATE POLICY "Allow users to update their own participant profile"
   TO authenticated
   USING (auth.uid() = id);
 
--- Predictions Policies
 CREATE POLICY "Allow users to read predictions"
   ON public.predictions FOR SELECT
   TO authenticated
-  USING (
-    auth.uid() = participant_id
-    OR EXISTS (
-      SELECT 1 FROM public.matches
-      WHERE matches.id = match_id
-      AND (matches.status IN ('in_progress', 'finished') OR matches.match_date <= NOW())
-    )
-    OR EXISTS (
-      SELECT 1 FROM public.participants
-      WHERE participants.id = auth.uid() AND participants.is_admin = true
-    )
-  );
+  USING (true);
 
 CREATE POLICY "Allow users to insert their own predictions"
   ON public.predictions FOR INSERT

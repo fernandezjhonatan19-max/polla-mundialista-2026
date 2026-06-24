@@ -30,8 +30,8 @@ export default function MatchDetail({
   const isStarted = status !== 'pending' || now >= matchTime;
   const isFinished = status === 'finished';
   
-  // Predictions become public for everyone if the match itself started OR the overall tournament started
-  const isPublic = isStarted || tournamentStarted;
+  // Predictions are public for everyone (requested by user to be unlocked from the start)
+  const isPublic = true;
 
   // Format date nicely
   const formatDate = (dateStr) => {
